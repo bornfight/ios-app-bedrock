@@ -10,23 +10,51 @@
 
 default_platform :ios
 
-platform :ios do 
+def setup_keychain 
+  `security create-keychain -p #{ENV['TEMP_KEYCHAIN_PASS']} #{ENV['TEMP_KEYCHAIN_PATH']}`
+  `security unlock-keychain -p #{ENV['TEMP_KEYCHAIN_PASS']} #{ENV['TEMP_KEYCHAIN_PATH']}`
+  `security set-keychain-settings -t 3600 -l #{ENV['TEMP_KEYCHAIN_PATH']}`
+  `curl -f -o wwdrca.cer https://developer.apple.com/certificationauthority/AppleWWDRCA.cer`
+  `security import wwdrca.cer -k #{ENV['TEMP_KEYCHAIN_PATH']}`
+  `security default-keychain -s #{ENV['TEMP_KEYCHAIN_PATH']}`
+  current_keychains = `security list-keychains`
+  new_keychains= `printf "\"#{ENV['TEMP_KEYCHAIN_PATH']}\"\n    #{current_keychains}"`
+  `security list-keychains -s $(echo #{new_keychains} | sed 's/"//g')`
+  `security unlock-keychain -p #{ENV['TEMP_KEYCHAIN_PASS']} #{ENV['TEMP_KEYCHAIN_PATH']}`
+end
 
-  lane :lint do
-    swiftlint
+before_all do
+  Dotenv.overload '.env.secret'
+end
+
+lane :lint do
+  swiftlint
+end
+
+lane :test do
+  run_tests
+end
+
+lane :provision do
+  match
+end
+
+lane :build do |options|
+  if options[:ci]
+    setup_keychain
   end
+  gym
+end
 
-  lane :test do
-    run_tests
+lane :distribute do |options|
+  if options[:method] == 'staging'
+    crashlytics
+  elsif options[:method] == 'production'
+    deliver(
+      submit_for_review: false,
+      skip_screenshots: true,
+      skip_metadata: true
+    )
   end
-
-  lane :build do
-    match
-    gym
-  end
-
-  lane :distribute do
-    submit
-  end
-
+  submit
 end
