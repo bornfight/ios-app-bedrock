@@ -1,0 +1,86 @@
+stages:
+  - version_precheck
+  - lint
+  - test
+  - deploy
+  - commit_changes
+
+variables:
+  LANG: 'en_us.UTF-8'
+  LANGUAGE: 'en_us.UTF-8'
+  LC_ALL: 'en_us.UTF-8'
+
+before_script:
+  - bundle install --path /Users/jenkins/.gems
+  - npm install ios-sim -g
+  - 'ios-sim start --devicetypeid "com.apple.CoreSimulator.SimDeviceType.iPhone-6"'
+
+after_script:
+  - xcrun simctl shutdown all
+
+version_precheck:
+  stage: version_precheck
+  tags:
+    - ios
+  script:
+    - bundle exec fastlane version_precheck
+  only:
+    - master
+
+lint:
+  stage: lint
+  tags:
+    - ios
+  script:
+    - bundle exec fastlane lint
+  only:
+    - dev
+    - master
+  except:
+    - /^(\[SKIP-CI\]).*$/
+
+test:
+  stage: test
+  tags:
+    - ios
+  script:
+    - bundle exec fastlane test
+  only:
+    - dev
+    - master
+  except:
+    - /^(\[SKIP-CI\]).*$/
+
+staging:
+  stage: deploy
+  tags:
+    - ios
+  script:
+    - 'bundle exec fastlane provision --env staging'
+    - 'bundle exec fastlane build ci:true --env staging'
+    - 'bundle exec fastlane distribute method:staging --env staging'
+  only:
+    - dev
+  except:
+    - /^(\[SKIP-CI\]).*$/
+
+production:
+  stage: deploy
+  tags:
+    - ios
+  script:
+    - 'bundle exec fastlane provision --env prod'
+    - 'bundle exec fastlane build ci:true --env prod'
+    - 'bundle exec fastlane distribute method:production --env prod'
+  only:
+    - master
+
+commit_changes:
+  stage: commit_changes
+  tags: 
+    - ios
+  script:
+    - bundle exec fastlane commit_changes
+  only:
+    - dev
+    - master
