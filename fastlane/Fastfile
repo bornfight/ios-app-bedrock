@@ -51,6 +51,7 @@ lane :distribute do |options|
     crashlytics
   elsif options[:method] == 'production'
     deliver(
+      app_version: get_version_number,
       submit_for_review: false,
       skip_screenshots: true,
       skip_metadata: true
