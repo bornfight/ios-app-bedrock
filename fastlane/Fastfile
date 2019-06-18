@@ -8,6 +8,8 @@
 # Feel free to add modifications to your specific Fastfile as necessary.
 # 
 
+require 'spaceship'
+
 default_platform :ios
 
 def setup_keychain 
@@ -35,8 +37,13 @@ lane :test do
   run_tests
 end
 
-lane :provision do
-  match
+lane :provision do |options|
+  if options[:ci]
+    setup_keychain
+  end
+  match(
+    force_for_new_devices: true
+  )
 end
 
 lane :build do |options|
@@ -52,10 +59,10 @@ lane :distribute do |options|
   elsif options[:method] == 'production'
     deliver(
       app_version: get_version_number,
+      skip_app_version_update: false,
       submit_for_review: false,
       skip_screenshots: true,
       skip_metadata: true
     )
   end
-  submit
 end
