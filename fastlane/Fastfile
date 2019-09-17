@@ -30,7 +30,7 @@ before_all do
 end
 
 lane :lint do
-  swiftlint
+  swiftlint(strict: true)
 end
 
 lane :test do
